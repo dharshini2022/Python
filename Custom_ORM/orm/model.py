@@ -1,5 +1,6 @@
-from orm.db import db
 from orm.metaclass import Meta
+from orm.query import Query
+
 
 class Model(metaclass=Meta):
 
@@ -9,47 +10,23 @@ class Model(metaclass=Meta):
 
     @classmethod
     def create_table(cls):
-        columns = []
-        for name, field in cls._fields.items():
-            columns.append(f"{name} {field.sql()}")
-
-        query = f"CREATE TABLE IF NOT EXISTS {cls._table} ({', '.join(columns)})"
-        db.execute(query)
+        Query.create_table(cls)
 
     def save(self):
-        fields = self._fields.keys()
-        values = [getattr(self, f) for f in fields]
-
-        placeholders = ", ".join(["?"] * len(values))
-        field_names = ", ".join(fields)
-
-        query = f"INSERT INTO {self._table} ({field_names}) VALUES ({placeholders})"
-        db.execute(query, values)
+        Query.insert(self)
 
     @classmethod
-    def all(cls):
-        query = f"SELECT * FROM {cls._table}"
-        rows = db.execute(query).fetchall()
-
-        results = []
-        for row in rows:
-            obj = cls(**dict(zip(cls._fields.keys(), row)))
-            results.append(obj)
-
-        return results
+    def query(cls):
+        return Query(cls)
 
     @classmethod
     def filter(cls, **kwargs):
-        conditions = []
-        values = []
+        return Query(cls).filter(**kwargs)
 
-        for key, value in kwargs.items():
-            conditions.append(f"{key} = ?")
-            values.append(value)
+    @classmethod
+    def all(cls):
+        return Query(cls).all()
 
-        where_clause = " AND ".join(conditions)
-
-        query = f"SELECT * FROM {cls._table} WHERE {where_clause}"
-        rows = db.execute(query, values).fetchall()
-
-        return [cls(**dict(zip(cls._fields.keys(), row))) for row in rows]
+    @classmethod
+    def delete(cls, **kwargs):
+        return Query(cls).filter(**kwargs).delete()
