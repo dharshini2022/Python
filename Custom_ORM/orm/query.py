@@ -1,9 +1,15 @@
 from orm.db import db
+from orm.fieldDescriptors import ForeignKey
 
-def execute(query, values=None, commit=False):
+def execute(query, values=None, commit=False, action=None, table=None):
     print()
+
+    if action and table:
+        print(f"[{action.upper()}] table={table}")
+
     print("SQL:", query)
-    if values is not None:
+
+    if values:
         print("VALUES:", values)
 
     cursor = db.execute(query, values or [])
@@ -27,19 +33,32 @@ class Query:
         for name, field in model._fields.items():
             columns.append(f"{name} {field.sql()}")
 
-        query = f"CREATE TABLE IF NOT EXISTS {model._table} ({', '.join(columns)})"
-        execute(query, commit=True)
+        query = f"""
+        CREATE TABLE IF NOT EXISTS {model._table} (
+            {', '.join(columns)}
+        )
+        """
+        execute(query, commit=True, action="create", table=model._table)
+
+   
 
     @classmethod
     def insert(cls, obj):
         fields = obj._fields.keys()
-        values = [getattr(obj, f) for f in fields]
-
+        values = []
+        for f in fields:
+            field = obj._fields[f]
+            value = getattr(obj, f)
+            if isinstance(field, ForeignKey):
+                if value is not None:
+                    # If user passed object → extract id
+                    if hasattr(value, "id"):
+                        value = value.id
+            values.append(value)
         placeholders = ", ".join(["?"] * len(values))
         field_names = ", ".join(fields)
-
         query = f"INSERT INTO {obj._table} ({field_names}) VALUES ({placeholders})"
-        execute(query, values, commit=True)
+        execute(query, values, commit=True, action="insert", table=obj._table)
 
 
     def filter(self, **kwargs):
@@ -67,7 +86,8 @@ class Query:
 
     def all(self):
         query, values = self._build_query_parts()
-        rows = execute(query, values).fetchall()
+
+        rows = execute(query, values, action="select", table=self.model._table).fetchall()
 
         return [
             self.model(**dict(zip(self.model._fields.keys(), row)))
@@ -82,7 +102,7 @@ class Query:
         if self.conditions:
             query += " WHERE " + " AND ".join(self.conditions)
 
-        execute(query, self.values, commit=True)
+        execute(query, self.values, commit=True, action="delete", table=self.model._table)
 
 
     def update(self, **kwargs):
@@ -95,7 +115,7 @@ class Query:
             query += " WHERE " + " AND ".join(self.conditions)
             values.extend(self.values)
 
-        execute(query, values, commit=True)
+        execute(query, values, commit=True, action="update", table=self.model._table)
 
 
     def __repr__(self):

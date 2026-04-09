@@ -30,3 +30,17 @@ class Model(metaclass=Meta):
     @classmethod
     def delete(cls, **kwargs):
         return Query(cls).filter(**kwargs).delete()
+    
+    def __getattr__(self, item):
+        relations = getattr(type(self), "_reverse_relations", {})
+
+        if item in relations:
+            model_class, field = relations[item]
+
+            pk = getattr(self, "id", None)
+            if pk is None:
+                return []
+
+            return model_class.filter(**{field: pk}).all()
+
+        raise AttributeError(f"{item} not found")
