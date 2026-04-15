@@ -51,7 +51,6 @@ class Query:
             value = getattr(obj, f)
             if isinstance(field, ForeignKey):
                 if value is not None:
-                    # If user passed object → extract id
                     if hasattr(value, "id"):
                         value = value.id
             values.append(value)

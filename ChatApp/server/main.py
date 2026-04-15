@@ -102,7 +102,7 @@ async def handler(websocket):
                 await broadcast_presence()
 
     except websockets.exceptions.ConnectionClosed:
-        pass # Expected when client disconnects
+        pass 
     except Exception as e:
         print("[ERROR] Unexpected error in handler:")
         traceback.print_exc()

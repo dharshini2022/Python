@@ -46,7 +46,7 @@ function showTyping(sender) {
 
     typingTimeout = setTimeout(() => {
         typingDiv.style.display = "none";
-    }, 1000);
+    }, 5000);
 }
 
 function connectWebSocket() {
